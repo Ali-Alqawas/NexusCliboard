@@ -22,10 +22,9 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final PlatformService _platformService = PlatformService();
   
-  // ignore: unused_field
-  final int _currentStep = 0;
   bool _overlayPermissionGranted = false;
   bool _accessibilityPermissionGranted = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -34,11 +33,29 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   Future<void> _checkCurrentPermissions() async {
-    final permissions = await _platformService.checkAllPermissions();
-    setState(() {
-      _overlayPermissionGranted = permissions['overlay'] ?? false;
-      _accessibilityPermissionGranted = permissions['accessibility'] ?? false;
-    });
+    if (!mounted) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final permissions = await _platformService.checkAllPermissions();
+      
+      if (mounted) {
+        setState(() {
+          _overlayPermissionGranted = permissions['overlay'] ?? false;
+          _accessibilityPermissionGranted = permissions['accessibility'] ?? false;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _overlayPermissionGranted = false;
+          _accessibilityPermissionGranted = false;
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -401,10 +418,28 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   Future<void> _onContinue() async {
-    // بدء الخدمة / Start service
-    await _platformService.startService();
+    if (!mounted) return;
     
-    // إشعار الانتهاء / Notify completion
-    widget.onSetupComplete();
+    setState(() => _isLoading = true);
+    
+    try {
+      // بدء الخدمة / Start service
+      await _platformService.startService();
+      
+      // إشعار الانتهاء / Notify completion
+      if (mounted) {
+        widget.onSetupComplete();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
