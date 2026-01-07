@@ -157,49 +157,44 @@ class _DPadButtonState extends State<_DPadButton>
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                color: _isPressed
-                    ? color.withValues(alpha: 0.3)
-                    : AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _isPressed
-                      ? color
-                      : AppColors.border.withValues(alpha: 0.5),
-                  width: _isPressed ? 2 : 1,
-                ),
-                boxShadow: _isPressed
-                    ? [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Icon(
-                widget.icon,
-                size: widget.size * 0.6,
-                color: _isPressed ? color : AppColors.textSecondary,
-              ),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            color: _isPressed
+                ? color.withValues(alpha: 0.3)
+                : AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _isPressed
+                  ? color
+                  : AppColors.border.withValues(alpha: 0.5),
+              width: _isPressed ? 2 : 1,
             ),
-          );
-        },
+            boxShadow: _isPressed
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          child: Icon(
+            widget.icon,
+            size: widget.size * 0.6,
+            color: _isPressed ? color : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
