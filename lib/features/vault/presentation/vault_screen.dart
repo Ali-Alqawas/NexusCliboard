@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/clip_item.dart';
 import '../../../core/services/database_service.dart';
@@ -43,6 +44,8 @@ class _VaultScreenState extends State<VaultScreen>
   String _searchQuery = '';
   bool _isLoading = true;
   bool _showDPad = false;
+  String? _errorMessage;
+  bool _isInitialized = false;
 
   // فئات التبويبات / Tab Categories
   final List<CategoryTabData> _categories = [
@@ -83,7 +86,7 @@ class _VaultScreenState extends State<VaultScreen>
     super.initState();
     _tabController = TabController(length: _categories.length, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _loadItems();
+    _initialize();
   }
 
   @override
@@ -93,50 +96,104 @@ class _VaultScreenState extends State<VaultScreen>
     super.dispose();
   }
 
+  Future<void> _initialize() async {
+    try {
+      // التأكد من تهيئة قاعدة البيانات
+      if (!_databaseService.isInitialized) {
+        await _databaseService.initialize();
+      }
+      _isInitialized = true;
+      await _loadItems();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('VaultScreen initialization error: $e');
+      }
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'فشل في تحميل البيانات: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
     _filterItems();
   }
 
   Future<void> _loadItems() async {
-    setState(() => _isLoading = true);
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
+      if (!_isInitialized || !_databaseService.isInitialized) {
+        // محاولة إعادة التهيئة
+        await _databaseService.initialize();
+        _isInitialized = true;
+      }
+      
       _allItems = _databaseService.getAllItems();
       _filterItems();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error loading items: $e');
+      }
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'فشل في تحميل العناصر';
+          _allItems = [];
+          _filteredItems = [];
+        });
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _filterItems() {
+    if (!mounted) return;
+    
     final currentCategory = _categories[_tabController.index].id;
     
     setState(() {
-      if (currentCategory == 'live') {
-        // Live Stream - جميع العناصر مرتبة زمنياً
-        _filteredItems = _allItems
-            .where((item) => 
-                _searchQuery.isEmpty ||
-                item.content.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .take(50)
-            .toList();
-      } else if (currentCategory == 'secure') {
-        // Secure Vault - كلمات المرور
-        _filteredItems = _allItems
-            .where((item) => 
-                (item.type == 'password' || item.isSecure) &&
-                (_searchQuery.isEmpty ||
-                 item.content.toLowerCase().contains(_searchQuery.toLowerCase())))
-            .toList();
-      } else {
-        // باقي الفئات
-        _filteredItems = _allItems
-            .where((item) => 
-                item.type == currentCategory &&
-                (_searchQuery.isEmpty ||
-                 item.content.toLowerCase().contains(_searchQuery.toLowerCase())))
-            .toList();
+      try {
+        if (currentCategory == 'live') {
+          // Live Stream - جميع العناصر مرتبة زمنياً
+          _filteredItems = _allItems
+              .where((item) => 
+                  _searchQuery.isEmpty ||
+                  item.content.toLowerCase().contains(_searchQuery.toLowerCase()))
+              .take(50)
+              .toList();
+        } else if (currentCategory == 'secure') {
+          // Secure Vault - كلمات المرور
+          _filteredItems = _allItems
+              .where((item) => 
+                  (item.type == 'password' || item.isSecure) &&
+                  (_searchQuery.isEmpty ||
+                   item.content.toLowerCase().contains(_searchQuery.toLowerCase())))
+              .toList();
+        } else {
+          // باقي الفئات
+          _filteredItems = _allItems
+              .where((item) => 
+                  item.type == currentCategory &&
+                  (_searchQuery.isEmpty ||
+                   item.content.toLowerCase().contains(_searchQuery.toLowerCase())))
+              .toList();
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Error filtering items: $e');
+        }
+        _filteredItems = [];
       }
     });
   }
@@ -147,33 +204,47 @@ class _VaultScreenState extends State<VaultScreen>
   }
 
   Future<void> _onItemTap(ClipItem item) async {
-    // نسخ للحافظة / Copy to clipboard
-    await Clipboard.setData(ClipboardData(text: item.content));
-    
-    // تحديث عداد الاستخدام / Update usage count
-    item.markAsUsed();
-    
-    // عرض رسالة / Show message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: AppColors.success),
-              SizedBox(width: 8),
-              Text('تم النسخ للحافظة'),
-            ],
+    try {
+      // نسخ للحافظة / Copy to clipboard
+      await Clipboard.setData(ClipboardData(text: item.content));
+      
+      // تحديث عداد الاستخدام / Update usage count
+      item.markAsUsed();
+      
+      // عرض رسالة / Show message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.success),
+                SizedBox(width: 8),
+                Text('تم النسخ للحافظة'),
+              ],
+            ),
+            backgroundColor: AppColors.cardBackground,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 1),
           ),
-          backgroundColor: AppColors.cardBackground,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
+        );
+      }
 
-    // إغلاق الـ Overlay إذا كان مفتوحاً
-    if (widget.isOverlay && mounted) {
-      Navigator.of(context).pop();
+      // إغلاق الـ Overlay إذا كان مفتوحاً
+      if (widget.isOverlay && mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error copying item: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('فشل في نسخ العنصر'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -187,29 +258,41 @@ class _VaultScreenState extends State<VaultScreen>
   }
 
   Future<void> _onItemPin(ClipItem item) async {
-    item.togglePin();
-    _loadItems();
+    try {
+      item.togglePin();
+      _loadItems();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error pinning item: $e');
+      }
+    }
   }
 
   Future<void> _onItemDelete(ClipItem item) async {
-    item.softDelete();
-    _loadItems();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('تم حذف العنصر'),
-          backgroundColor: AppColors.cardBackground,
-          action: SnackBarAction(
-            label: 'تراجع',
-            textColor: AppColors.primary,
-            onPressed: () {
-              item.restore();
-              _loadItems();
-            },
+    try {
+      item.softDelete();
+      _loadItems();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تم حذف العنصر'),
+            backgroundColor: AppColors.cardBackground,
+            action: SnackBarAction(
+              label: 'تراجع',
+              textColor: AppColors.primary,
+              onPressed: () {
+                item.restore();
+                _loadItems();
+              },
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error deleting item: $e');
+      }
     }
   }
 
@@ -259,6 +342,11 @@ class _VaultScreenState extends State<VaultScreen>
   }
 
   Widget _buildContent() {
+    // عرض شاشة الخطأ إذا كان هناك خطأ
+    if (_errorMessage != null && !_isLoading) {
+      return _buildErrorView();
+    }
+
     return Column(
       children: [
         // الهيدر / Header
@@ -279,13 +367,72 @@ class _VaultScreenState extends State<VaultScreen>
         // المحتوى / Content
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? _buildLoadingView()
               : _buildTabContent(),
         ),
         
         // Virtual D-Pad (اختياري)
         if (_showDPad) _buildDPad(),
       ],
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: AppColors.error.withValues(alpha: 0.7),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadItems,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة المحاولة'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              AppColors.primary.withValues(alpha: 0.8),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'جاري تحميل العناصر...',
+            style: TextStyle(
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -340,6 +487,12 @@ class _VaultScreenState extends State<VaultScreen>
             ),
             onPressed: () => setState(() => _showDPad = !_showDPad),
             tooltip: 'Virtual D-Pad',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_outlined),
+            color: AppColors.textSecondary,
+            onPressed: _loadItems,
+            tooltip: 'تحديث',
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -448,9 +601,60 @@ class _VaultScreenState extends State<VaultScreen>
               color: AppColors.textTertiary.withValues(alpha: 0.5),
             ),
           ),
+          
+          // زر إضافة عنصر تجريبي (للاختبار)
+          if (_allItems.isEmpty) ...[
+            const SizedBox(height: 32),
+            OutlinedButton.icon(
+              onPressed: _addSampleItems,
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة عناصر تجريبية'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// إضافة عناصر تجريبية للاختبار
+  Future<void> _addSampleItems() async {
+    try {
+      final sampleItems = [
+        ClipItem.fromText('https://flutter.dev'),
+        ClipItem.fromText('user@example.com'),
+        ClipItem.fromText('+966501234567'),
+        ClipItem.fromText('''
+void main() {
+  print('Hello, NexusClip!');
+}'''),
+        ClipItem.fromText('هذا نص تجريبي للاختبار'),
+        ClipItem.template('شكراً لتواصلك معنا! سنرد عليك قريباً.', 'رد شكر'),
+        ClipItem.template('مرحباً، أود الاستفسار عن...', 'استفسار'),
+      ];
+
+      for (final item in sampleItems) {
+        await _databaseService.addItem(item);
+      }
+
+      await _loadItems();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تمت إضافة عناصر تجريبية'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error adding sample items: $e');
+      }
+    }
   }
 
   Widget _buildDPad() {
@@ -459,9 +663,15 @@ class _VaultScreenState extends State<VaultScreen>
       padding: const EdgeInsets.all(16),
       child: VirtualDPad(
         onDirectionPressed: (direction) async {
-          await _platformService.moveCursor(direction);
-          // اهتزاز خفيف / Light haptic
-          HapticFeedback.lightImpact();
+          try {
+            await _platformService.moveCursor(direction);
+            // اهتزاز خفيف / Light haptic
+            HapticFeedback.lightImpact();
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('Error moving cursor: $e');
+            }
+          }
         },
       ),
     );
@@ -548,10 +758,22 @@ class _VaultScreenState extends State<VaultScreen>
   }
 
   void _openSettings() {
-    // TODO: فتح شاشة الإعدادات
+    // عرض رسالة مؤقتة
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('الإعدادات قيد التطوير'),
+        backgroundColor: AppColors.cardBackground,
+      ),
+    );
   }
 
   void _editItem(ClipItem item) {
-    // TODO: فتح محرر العنصر
+    // عرض رسالة مؤقتة
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('التعديل قيد التطوير'),
+        backgroundColor: AppColors.cardBackground,
+      ),
+    );
   }
 }
