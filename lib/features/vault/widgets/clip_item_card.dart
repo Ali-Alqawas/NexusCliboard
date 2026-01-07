@@ -147,8 +147,8 @@ class ClipItemCard extends StatelessWidget {
           
           // شارات الحالة / Status Badges
           if (item.isPinned)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
               child: Icon(
                 Icons.push_pin,
                 size: 16,
@@ -157,7 +157,7 @@ class ClipItemCard extends StatelessWidget {
             ),
           
           if (item.isSecure)
-            Icon(
+            const Icon(
               Icons.lock,
               size: 16,
               color: AppColors.categorySecure,
