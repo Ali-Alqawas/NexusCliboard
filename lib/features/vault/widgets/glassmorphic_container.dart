@@ -239,15 +239,16 @@ class _AnimatedGlassmorphicContainerState
           scale: _scaleAnimation.value,
           child: Opacity(
             opacity: _opacityAnimation.value,
-            child: GlassmorphicContainer(
-              padding: widget.padding,
-              margin: widget.margin,
-              borderRadius: widget.borderRadius,
-              child: widget.child,
-            ),
+            child: child,
           ),
         );
       },
+      child: GlassmorphicContainer(
+        padding: widget.padding,
+        margin: widget.margin,
+        borderRadius: widget.borderRadius,
+        child: widget.child,
+      ),
     );
   }
 }
