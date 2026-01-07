@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NexusClip - Accessibility Service Configuration
+    
+    هذا الملف يُعرّف إعدادات خدمة الوصول المسؤولة عن:
+    - مراقبة الحافظة على مستوى النظام
+    - التحكم في المؤشر عبر Virtual D-Pad
+    - رصد أحداث النسخ والتحديد
+    
+    This file defines accessibility service settings for:
+    - System-wide clipboard monitoring
+    - Cursor control via Virtual D-Pad
+    - Copy and selection event detection
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeViewClicked|typeViewFocused|typeWindowStateChanged|typeWindowContentChanged|typeViewTextChanged|typeViewTextSelectionChanged"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRequestTouchExplorationMode|flagReportViewIds"
+    android:accessibilityFeedbackType="feedbackGeneric|feedbackHaptic"
+    android:notificationTimeout="50"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
+    android:canTakeScreenshot="false"
+    android:settingsActivity="com.nexusclip.clip.MainActivity"
+    android:description="@string/accessibility_service_description" />

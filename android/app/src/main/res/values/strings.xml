@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NexusClip</string>
+    <string name="accessibility_service_description">NexusClip uses accessibility service to:\n\n• Monitor clipboard changes system-wide\n• Provide cursor control via Virtual D-Pad\n• Enable quick paste from any application\n\nYour data is stored locally and encrypted. No data is sent to the internet.\n\n---\n\nنيكسس كليب يستخدم خدمة الوصول لـ:\n\n• مراقبة تغييرات الحافظة على مستوى النظام\n• توفير التحكم بالمؤشر عبر لوحة الأسهم\n• تمكين اللصق السريع من أي تطبيق\n\nبياناتك مُخزنة محلياً ومُشفرة. لا يتم إرسال أي بيانات للإنترنت.</string>
+    <string name="notification_channel_name">NexusClip Service</string>
+    <string name="notification_channel_description">Shows when NexusClip is monitoring clipboard</string>
+    <string name="service_notification_title">NexusClip Active</string>
+    <string name="service_notification_text">Tap the edge handle to access clipboard</string>
+</resources>
