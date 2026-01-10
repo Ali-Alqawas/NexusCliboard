@@ -10,6 +10,8 @@ import '../widgets/category_tab.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/virtual_dpad.dart';
 import '../widgets/glassmorphic_container.dart';
+import '../../settings/presentation/settings_screen.dart';
+import 'edit_item_dialog.dart';
 
 /// NexusClip - شاشة الخزنة الرئيسية
 /// Main Vault Screen
@@ -758,22 +760,26 @@ void main() {
   }
 
   void _openSettings() {
-    // عرض رسالة مؤقتة
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('الإعدادات قيد التطوير'),
-        backgroundColor: AppColors.cardBackground,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
       ),
-    );
+    ).then((_) {
+      // إعادة تحميل البيانات بعد العودة من الإعدادات
+      _loadItems();
+    });
   }
 
-  void _editItem(ClipItem item) {
-    // عرض رسالة مؤقتة
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('التعديل قيد التطوير'),
-        backgroundColor: AppColors.cardBackground,
-      ),
+  void _editItem(ClipItem item) async {
+    final result = await showEditItemDialog(
+      context,
+      item,
+      onSaved: () => _loadItems(),
     );
+
+    if (result == true) {
+      _loadItems();
+    }
   }
 }
